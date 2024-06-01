@@ -16,7 +16,7 @@ type Transaction = {
 }
 
 export class Blockchain {
-    private chain: Block[]
+    private readonly chain: Block[]
     private pendingTransactions: Transaction[]
 
     constructor() {
@@ -60,8 +60,7 @@ export class Blockchain {
 
     hashBlock(previousHashBlock: string, nonce: number, currentBlockData: Block): string {
         const dataAsString = previousHashBlock + nonce + JSON.stringify(currentBlockData)
-        const hash = sha256(dataAsString)
-        return hash
+        return sha256(dataAsString)
     }
 
     proofOfWork(previousHashBlock: string, currentBlockData: Block): number {
