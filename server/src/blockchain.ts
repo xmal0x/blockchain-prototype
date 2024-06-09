@@ -1,5 +1,7 @@
 import sha256 from 'sha256'
 
+const nodeUrl = process.argv[3]
+
 type Block = {
     index: number
     timestamp: number
@@ -7,6 +9,11 @@ type Block = {
     nonce: number
     hash: string
     previousBlockHash: string
+}
+
+type BlockData = {
+    index: number
+    transactions: Transaction[]
 }
 
 type Transaction = {
@@ -17,11 +24,15 @@ type Transaction = {
 
 export class Blockchain {
     private readonly chain: Block[]
-    private pendingTransactions: Transaction[]
+    pendingTransactions: Transaction[]
+    nodeUrl = ''
+    networkNodes: string[] = []
 
     constructor() {
         this.chain = []
         this.pendingTransactions = []
+        this.nodeUrl = nodeUrl
+        this.networkNodes = []
 
         this.createNewBlock(0, '0', '0')
     }
@@ -58,12 +69,12 @@ export class Blockchain {
         return this.getLastBlock().index + 1
     }
 
-    hashBlock(previousHashBlock: string, nonce: number, currentBlockData: Block): string {
+    hashBlock(previousHashBlock: string, nonce: number, currentBlockData: BlockData): string {
         const dataAsString = previousHashBlock + nonce + JSON.stringify(currentBlockData)
         return sha256(dataAsString)
     }
 
-    proofOfWork(previousHashBlock: string, currentBlockData: Block): number {
+    proofOfWork(previousHashBlock: string, currentBlockData: BlockData): number {
         let nonce = 0
         let hash = this.hashBlock(previousHashBlock, nonce, currentBlockData)
 
