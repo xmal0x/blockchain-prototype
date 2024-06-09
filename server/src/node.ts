@@ -1,6 +1,6 @@
 import express from 'express'
 import bodyParser from "body-parser"
-import {Blockchain} from "./blockchain"
+import {Blockchain, Transaction} from "./blockchain"
 import { v1 } from 'uuid'
 import rp from 'request-promise'
 
@@ -20,9 +20,34 @@ app.get('/blockchain', (req, res) => {
 });
 
 app.post('/transaction', (req, res) => {
-    const { amount, sender, recipient } = req.body
-    const index = blockchain.createNewTransaction(amount, sender, recipient)
+    const newTransaction = req.body
+    const index = blockchain.addTransactionToPending(newTransaction)
     res.json({ message: `Transaction will be added to block ${index}` }).status(201)
+})
+
+app.post('/transaction/broadcast', (req, res) => {
+    const { amount, sender, recipient } = req.body
+    const newTransaction = blockchain.createNewTransaction(amount, sender, recipient)
+    blockchain.addTransactionToPending(newTransaction)
+
+    const requestPromises: Promise<void>[] = []
+    blockchain.networkNodes.forEach(newtworkNodeUrl => {
+        const options = {
+            uri: newtworkNodeUrl + '/transaction',
+            method: 'POST',
+            body: newTransaction,
+            json: true
+        }
+
+        requestPromises.push(rp(options).promise())
+    })
+
+    Promise.all(requestPromises)
+        .then(data => {
+            res.json({
+                message: 'Transaction created and broadcast successfully'
+            })
+        })
 })
 
 app.get('/mine', (req, res) => {
@@ -36,11 +61,54 @@ app.get('/mine', (req, res) => {
     const nonce = blockchain.proofOfWork(prevBlockHash, currentBlockData)
     const hash = blockchain.hashBlock(prevBlockHash, nonce, currentBlockData)
 
-    // mined reward
-    blockchain.createNewTransaction(12.5, '00', nodeAddress)
-
     const block = blockchain.createNewBlock(nonce, hash, prevBlockHash)
-    res.json({ message: 'New block mined successfully', block }).status(200)
+
+    const requestPromises: Promise<void>[] = []
+    blockchain.networkNodes.forEach(networkNodeUrl => {
+        const options = {
+            uri: networkNodeUrl + '/receive-new-block',
+            method: 'POST',
+            body: {newBlock: block},
+            json: true
+        }
+
+        requestPromises.push(rp(options).promise())
+    })
+
+    Promise.all(requestPromises)
+        .then(data => {
+            const options = {
+                uri: blockchain.nodeUrl + '/transaction/broadcast',
+                method: 'POST',
+                body: {
+                    amount: 12.5,
+                    sender: '00',
+                    recipient: nodeAddress
+                },
+                json: true
+            }
+
+            return rp(options)
+        })
+        .then(data => {
+            res.json({ message: 'New block mined & broadcast successfully', block }).status(200)
+        })
+})
+
+app.post('/receive-new-block', (req, res) => {
+    const { newBlock } = req.body
+    const lastBlock = blockchain.getLastBlock()
+    const correctHash = lastBlock.hash === newBlock.previousBlockHash
+    const correctIndex = lastBlock.index + 1 === newBlock.index
+
+    if (correctHash && correctIndex) {
+        blockchain.chain.push(newBlock)
+        blockchain.pendingTransactions = []
+        res.json({ message: 'New block received and accepted', block: newBlock }).status(200)
+    } else {
+        res.json({ message: 'New block rejected', block: newBlock })
+    }
+
 })
 
 app.post('/register-and-broadcast-node', (req, res) => {
@@ -99,6 +167,48 @@ app.post('/register-nodes-bulk', (req, res) => {
     })
 
     res.json({message: 'Bulk registration successful'})
+})
+
+app.get('/consensus', (req, res) => {
+    const requestPromises: Promise<Blockchain>[] = []
+    blockchain.networkNodes.forEach(networkNodeUrl => {
+        const options = {
+            uri: networkNodeUrl + '/blockchain',
+            method: 'GET',
+            json: true
+        }
+
+        requestPromises.push(rp(options).promise())
+    })
+
+    Promise.all(requestPromises)
+        .then(blockchains => {
+            const currentChainLength = blockchain.chain.length
+            let maxChainLength = currentChainLength
+            let newLongestChain = null
+            let newPendingTransactions: Transaction[] = []
+            blockchains.forEach(bc => {
+                if(bc.chain.length > maxChainLength) {
+                    maxChainLength = bc.chain.length
+                    newLongestChain = bc.chain
+                    newPendingTransactions = bc.pendingTransactions
+                }
+            })
+
+            if(newLongestChain && blockchain.chainIsValid(newLongestChain)) {
+                blockchain.chain = newLongestChain
+                blockchain.pendingTransactions = newPendingTransactions
+                res.json({
+                    message: 'This chain has been replaced',
+                    chain: blockchain.chain
+                })
+            } else {
+                res.json({
+                    message: 'This chain has not been replaced',
+                    chain: blockchain.chain
+                })
+            }
+        })
 })
 
 app.listen(port, () => {

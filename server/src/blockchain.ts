@@ -1,4 +1,5 @@
 import sha256 from 'sha256'
+import { v1 } from 'uuid'
 
 const nodeUrl = process.argv[3]
 
@@ -16,14 +17,15 @@ type BlockData = {
     transactions: Transaction[]
 }
 
-type Transaction = {
+export type Transaction = {
     amount: number
     sender: string
     recipient: string
+    transactionId: string
 }
 
 export class Blockchain {
-    private readonly chain: Block[]
+    chain: Block[]
     pendingTransactions: Transaction[]
     nodeUrl = ''
     networkNodes: string[] = []
@@ -57,15 +59,17 @@ export class Blockchain {
         return this.chain[this.chain.length - 1]
     }
 
-    createNewTransaction(amount: number, sender: string, recipient: string): number {
-        const transaction = {
+    createNewTransaction(amount: number, sender: string, recipient: string): Transaction {
+        return {
             amount,
             sender,
-            recipient
+            recipient,
+            transactionId: v1().split('-').join('')
         }
+    }
 
+    addTransactionToPending(transaction: Transaction): number {
         this.pendingTransactions.push(transaction)
-
         return this.getLastBlock().index + 1
     }
 
@@ -84,5 +88,36 @@ export class Blockchain {
         }
 
         return nonce
+    }
+
+    chainIsValid(chain: Block[]): boolean {
+        let validChain = true
+
+        for (let i = 1; i < chain.length; i++) {
+            const currentBlock = chain[i]
+            const prevBlock = chain[i-1]
+
+            const blockHash = this.hashBlock(prevBlock.hash, currentBlock.nonce, {transactions: currentBlock.transactions, index: currentBlock.index})
+
+            if(!blockHash.startsWith('0000')) {
+                validChain = false
+            }
+
+            if (currentBlock.previousBlockHash !== prevBlock.hash) {
+                validChain = false
+            }
+        }
+
+        const genesisBlock = chain[0]
+        const correctNonce = genesisBlock.nonce === 0
+        const correctPrevHash = genesisBlock.previousBlockHash = '0'
+        const correctHash = genesisBlock.hash === '0'
+        const correctTransactions = genesisBlock.transactions.length === 0
+
+        if(!correctNonce || !correctHash || !correctPrevHash || !correctTransactions) {
+            validChain = false
+        }
+
+        return validChain
     }
 }
