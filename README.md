@@ -4,11 +4,11 @@ This project is a simple prototype of a blockchain, allowing the launch of multi
 
 ## Key Endpoints
 
-- **/blockchain**: Retrieve the blockchain
-- **/mine**: Mine a new block
-- **/transaction/broadcast**: Create a new transaction and synchronize it across all nodes
-- **/register-and-broadcast-node**: Register a new node and synchronize it with existing nodes
-- **/consensus**: Achieve consensus using the longest chain rule
+- GET **/blockchain**: Retrieve the blockchain
+- GET **/mine**: Mine a new block
+- POST **/transaction/broadcast**: Create a new transaction and synchronize it across all nodes
+- POST **/register-and-broadcast-node**: Register a new node and synchronize it with existing nodes
+- GET **/consensus**: Achieve consensus using the longest chain rule
 
 ## Installation
 
