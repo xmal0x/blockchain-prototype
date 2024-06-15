@@ -211,6 +211,28 @@ app.get('/consensus', (req, res) => {
         })
 })
 
+app.get('/block/:blockHash', (req, res) => {
+    const blockHash = req.params.blockHash
+    const block = blockchain.getBlock(blockHash)
+    res.json({
+        block
+    })
+})
+
+app.get('/transaction/:transactionId', (req, res) => {
+    const transactionId = req.params.transactionId
+    const data = blockchain.getTransaction(transactionId)
+    res.json(data)
+})
+
+app.get('/address/:address', (req, res) => {
+    const address = req.params.address
+    const addressData = blockchain.getAddress(address)
+    res.json({
+        addressData
+    })
+})
+
 app.listen(port, () => {
     console.log(`Server is running at ${port} port`);
 });

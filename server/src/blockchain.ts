@@ -120,4 +120,51 @@ export class Blockchain {
 
         return validChain
     }
+
+    getBlock(blockHash: string): Block | null {
+        return this.chain.find(b => b.hash === blockHash) || null
+    }
+
+    getTransaction(transactionId: string) {
+        let foundTransaction = null
+        let foundBlock = null
+
+        this.chain.forEach(block => {
+            const transaction = block.transactions.find(t => t.transactionId === transactionId)
+            if (transaction) {
+                foundBlock = block
+                foundTransaction = transaction
+            }
+        })
+
+        return {
+            transaction: foundTransaction,
+            block: foundBlock
+        }
+    }
+
+    getAddress(address: string) {
+        const foundTransactions: Transaction[] = []
+        this.chain.forEach(block => {
+            block.transactions.forEach(transaction => {
+                if (transaction.sender === address || transaction.recipient === address) {
+                    foundTransactions.push(transaction)
+                }
+            })
+        })
+
+        let balance = 0
+        foundTransactions.forEach(transaction => {
+            if (transaction.sender === address) {
+                balance -= transaction.amount
+            } else {
+                balance += transaction.amount
+            }
+        })
+
+        return {
+            foundTransactions,
+            balance
+        }
+    }
 }
