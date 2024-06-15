@@ -23,12 +23,12 @@ This project is a simple prototype of a blockchain, allowing the launch of multi
 
 ## Usage
 
-1. To start the server, use the scripts defined in `package.json`:
+1. To start the server, use the scripts defined in `package.json`, you can add new nodes by adding new script in the `package.json`:
    ```sh
    npm run node ...
    ```
 
-2. To add nodes, use the `/register-and-broadcast-node` endpoint:
+2. Use the `/register-and-broadcast-node` endpoint for register nodes and synchronize them across all nodes
     - Request body example:
       ```json
       {
